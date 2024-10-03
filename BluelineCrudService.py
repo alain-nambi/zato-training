@@ -27,9 +27,10 @@ class BluelineCrudService(Service):
         address = self.request.payload.get("address")
         age = self.request.payload.get("age", 0)
         function = self.request.payload.get("function")
+        email = self.request.payload.get("email")
 
         # Validate required fields
-        if not all([name, firstname, address, function]):
+        if not all([name, firstname, address, function, email]):
             return self.log_and_respond(
                 "Missing required fields in user creation",
                 400,
@@ -44,14 +45,17 @@ class BluelineCrudService(Service):
                 {"error": "Age must be an integer and greater than 0"}
             )
 
-        # Generate random ID
-        ID = str(uuid.uuid4())
+        # Normalize email to lowercase for consistency
+        email = email.lower()
 
         # Check if user already exists
-        if ID in users:
+        if email in users:
             return self.log_and_respond(
                 "User already exists", 409, {"error": "User already exists"}
             )
+
+        # Generate random ID
+        ID = str(uuid.uuid4())
 
         # Create user
         user = {
@@ -60,10 +64,12 @@ class BluelineCrudService(Service):
             "firstname": firstname,
             "address": address,
             "age": age,
-            "function": function
+            "function": function,
+            "email": email,
         }
 
-        users[ID] = user
+        # Store user with email as the unique key
+        users[email] = user
         self.log_and_respond(
             "User created successfully", 201, {
                 "message": "User created successfully", "user": user
@@ -93,7 +99,8 @@ class BluelineCrudService(Service):
             ),
             "address": self.request.payload.get("address", user["address"]),
             "age": self.request.payload.get("age", user["age"]),
-            "function": self.request.payload.get("function", user["function"])
+            "function": self.request.payload.get("function", user["function"]),
+            "email": self.request.payload.get("email", user["email"])
         })
 
         self.log_and_respond(
