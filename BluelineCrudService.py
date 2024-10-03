@@ -1,14 +1,5 @@
-"""
-Exercice
---------
-service: gestion utilisateur
-- création utilisateur (nom, prénom, adresse, age, fonction, etc...)
-- suppression utilisateur 
-- get all list utilisateurs
-- une connexion channel relier à ton service pour un appel externe
-"""
-
 from zato.server.service import Service
+import uuid
 
 # Global variable to store users
 users = {}
@@ -17,40 +8,54 @@ users = {}
 class BluelineCrudService(Service):
     name = "blueline.crud.service"
 
-    # Handle GET request - Get List of User
-    def handle_GET(self):
-        self.logger.info("Retrieving all users.")
-        self.response.payload = {"users": list(users.values())}
-        self.logger.info("I was invoked via GET")
+    def log_and_respond(self, message, status_code, payload=None):
+        """Helper method to log and set the response payload."""
+        self.logger.info(message)
+        self.response.payload = payload or {}
+        self.response.status_code = status_code
 
-    # Handle POST request - Create User
+    def handle_GET(self):
+        self.log_and_respond(
+            "Retrieving all users.", 200, {"users": list(users.values())}
+        )
+
     def handle_POST(self):
         self.logger.info("Creating a new user.")
 
-        name = self.request.payload.get("name", "")
-        firstname = self.request.payload.get("firstname", "")
-        address = self.request.payload.get("address", "")
+        name = self.request.payload.get("name")
+        firstname = self.request.payload.get("firstname")
+        address = self.request.payload.get("address")
         age = self.request.payload.get("age", 0)
-        function = self.request.payload.get("function", "")
+        function = self.request.payload.get("function")
 
         # Validate required fields
-        if not (name and firstname and address and function):
-            self.response.payload = {"error": "Missing required fields"}
-            self.response.status_code = 400
-            self.logger.warning("Missing required fields in user creation")
-            return
+        if not all([name, firstname, address, function]):
+            return self.log_and_respond(
+                "Missing required fields in user creation",
+                400,
+                {"error": "Missing required fields"}
+            )
 
         # Validate age
-        if not isinstance(age, int) or int(age) <= 0:
-            self.response.payload = {
-                "error": "Age must be an integer and greater than 0"
-            }
-            self.response.status_code = 400
-            self.logger.warning(f"Invalid age provided : {age}")
-            return
+        if not isinstance(age, int) or age <= 0:
+            return self.log_and_respond(
+                "Invalid age provided.",
+                400,
+                {"error": "Age must be an integer and greater than 0"}
+            )
+
+        # Generate random ID
+        ID = str(uuid.uuid4())
+
+        # Check if user already exists
+        if ID in users:
+            return self.log_and_respond(
+                "User already exists", 409, {"error": "User already exists"}
+            )
 
         # Create user
         user = {
+            "ID": ID,
             "name": name,
             "firstname": firstname,
             "address": address,
@@ -58,40 +63,31 @@ class BluelineCrudService(Service):
             "function": function
         }
 
-        # Use the user's name as a key in the users dictionary
-        if name in users:
-            self.response.payload = {"error": "User already exists"}
-            self.response.status_code = 409
-            return
+        users[ID] = user
+        self.log_and_respond(
+            "User created successfully", 201, {
+                "message": "User created successfully", "user": user
+            }
+        )
 
-        users[name] = user
-
-        self.response.payload = {
-            "message": "User created successfully",
-            "user": user,
-        }
-        self.response.status_code = 201
-        self.logger.info(f"User {user['name']} created")
-        self.logger.info("I was invoked via POST")
-
-    # Handle PUT request - Update User Informations
     def handle_PUT(self):
-        self.logger.info("Updating user information by specifying username")
+        self.logger.info("Updating user information by specifying ID")
 
-        name = self.request.payload.get("name", "")
-        if not name:
-            self.response.payload = {"error": "Username is required"}
-            self.response.status_code = 400
-            return
+        ID = self.request.payload.get("ID")
+        if not ID:
+            return self.log_and_respond(
+                "ID is required", 400, {"error": "ID is required"}
+            )
 
-        user = users.get(name)
-
+        user = users.get(ID)
         if not user:
-            self.response.payload = {"error": "User not found"}
-            self.response.status_code = 404
-            return
+            return self.log_and_respond(
+                "User not found", 404, {"error": "User not found"}
+            )
 
+        # Update user information with provided values or keep existing ones
         user.update({
+            "name": self.request.payload.get("name", user["name"]),
             "firstname": self.request.payload.get(
                 "firstname", user["firstname"]
             ),
@@ -99,31 +95,25 @@ class BluelineCrudService(Service):
             "age": self.request.payload.get("age", user["age"]),
             "function": self.request.payload.get("function", user["function"])
         })
-        users[name] = user
 
-        self.response.payload = {
-            "message": "User information updated successfully",
-            "user": user
-        }
-        self.response.status_code = 200
+        self.log_and_respond(
+            "User information updated successfully",
+            200,
+            {"message": "User information updated successfully", "user": user}
+        )
 
-        self.logger.info("I was invoked via PUT")
-
-    # Handle DELETE request - Delete User
     def handle_DELETE(self):
-        self.logger.info("Deleting user by specifying username")
+        self.logger.info("Deleting user by specifying ID")
 
-        name = self.request.payload.get("name", "")
+        ID = self.request.payload.get("ID")
+        if ID not in users:
+            return self.log_and_respond(
+                "User not found", 404, {"error": "User not found"}
+            )
 
-        if name not in users:
-            self.response.payload = {"error": "User not found"}
-            self.response.status_code = 404
-            return
-
-        del users[name]
-        self.response.payload = {
-            "message": f"User {name} deleted successfully"
-        }
-        self.response.status_code = 200
-        self.logger.info(f"User {name} deleted")
-        self.logger.info("I was invoked via DELETE")
+        del users[ID]
+        self.log_and_respond(
+            f"User with ID: {ID} deleted successfully",
+            200,
+            {"message": f"User with ID: {ID} deleted successfully"}
+        )
