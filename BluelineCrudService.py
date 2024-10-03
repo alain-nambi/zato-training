@@ -6,8 +6,6 @@ service: gestion utilisateur
 - suppression utilisateur 
 - get all list utilisateurs
 - une connexion channel relier à ton service pour un appel externe
-
-Nous n'avons pas de bd pour insérer les info mais crée une variable dans votre code 
 """
 
 from zato.server.service import Service
@@ -16,7 +14,9 @@ from zato.server.service import Service
 users = {}
 
 
-class CRUDService(Service):
+class BluelineCrudService(Service):
+    name = "blueline.crud.service"
+
     # Handle GET request - Get List of User
     def handle_GET(self):
         self.logger.info("Retrieving all users.")
@@ -85,8 +85,16 @@ class CRUDService(Service):
             return
 
         user = users.get(name)
+
+        if not user:
+            self.response.payload = {"error": "User not found"}
+            self.response.status_code = 404
+            return
+
         user.update({
-            "firstname": self.request.payload.get("firstname", user["firstname"]),
+            "firstname": self.request.payload.get(
+                "firstname", user["firstname"]
+            ),
             "address": self.request.payload.get("address", user["address"]),
             "age": self.request.payload.get("age", user["age"]),
             "function": self.request.payload.get("function", user["function"])
