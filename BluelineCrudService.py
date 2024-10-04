@@ -51,15 +51,15 @@ class BluelineCrudService(Service):
         email = email.lower()
 
         # Check if user already exists
-        if email in users:
+        if any(user["email"] == email for user in users.values()):
             return self.log_and_respond(
-                message="User already exists",
+                message=f"User with email : ${email} already exists",
                 status_code=409,
-                payload={"error": "User already exists"}
+                payload={"error": f"User with email : {email} already exists"}
             )
 
         # Generate random ID
-        ID = str(uuid.uuid4())
+        ID = str(uuid.uuid4()).split("-")[-1]
 
         # Create user
         user = {
@@ -72,8 +72,8 @@ class BluelineCrudService(Service):
             "email": email,
         }
 
-        # Store user with email as the unique key
-        users[email] = user
+        # Store user with ID as the unique key
+        users[ID] = user
         self.log_and_respond(
             message="User created successfully",
             status_code=201,
@@ -88,7 +88,9 @@ class BluelineCrudService(Service):
         ID = self.request.payload.get("ID")
         if not ID:
             return self.log_and_respond(
-                "ID is required", 400, {"error": "ID is required"}
+                message="ID is required",
+                status_code=400,
+                payload={"error": "ID is required"}
             )
 
         user = users.get(ID)
