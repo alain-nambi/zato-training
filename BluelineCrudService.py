@@ -16,7 +16,9 @@ class BluelineCrudService(Service):
 
     def handle_GET(self):
         self.log_and_respond(
-            "Retrieving all users.", 200, {"users": list(users.values())}
+            message="Retrieving all users.",
+            status_code=200,
+            payload={"users": list(users.values())}
         )
 
     def handle_POST(self):
@@ -32,17 +34,17 @@ class BluelineCrudService(Service):
         # Validate required fields
         if not all([name, firstname, address, function, email]):
             return self.log_and_respond(
-                "Missing required fields in user creation",
-                400,
-                {"error": "Missing required fields"}
+                message="Missing required fields in user creation",
+                status_code=400,
+                payload={"error": "Missing required fields"}
             )
 
         # Validate age
         if not isinstance(age, int) or age <= 0:
             return self.log_and_respond(
-                "Invalid age provided.",
-                400,
-                {"error": "Age must be an integer and greater than 0"}
+                message="Invalid age provided.",
+                status_code=400,
+                payload={"error": "Age must be an integer and greater than 0"}
             )
 
         # Normalize email to lowercase for consistency
@@ -51,7 +53,9 @@ class BluelineCrudService(Service):
         # Check if user already exists
         if email in users:
             return self.log_and_respond(
-                "User already exists", 409, {"error": "User already exists"}
+                message="User already exists",
+                status_code=409,
+                payload={"error": "User already exists"}
             )
 
         # Generate random ID
@@ -71,7 +75,9 @@ class BluelineCrudService(Service):
         # Store user with email as the unique key
         users[email] = user
         self.log_and_respond(
-            "User created successfully", 201, {
+            message="User created successfully",
+            status_code=201,
+            payload={
                 "message": "User created successfully", "user": user
             }
         )
@@ -88,7 +94,9 @@ class BluelineCrudService(Service):
         user = users.get(ID)
         if not user:
             return self.log_and_respond(
-                "User not found", 404, {"error": "User not found"}
+                message="User not found",
+                status_code=404,
+                payload={"error": "User not found"}
             )
 
         # Update user information with provided values or keep existing ones
@@ -104,9 +112,12 @@ class BluelineCrudService(Service):
         })
 
         self.log_and_respond(
-            "User information updated successfully",
-            200,
-            {"message": "User information updated successfully", "user": user}
+            message="User information updated successfully",
+            status_code=200,
+            payload={
+                "message": "User information updated successfully",
+                "user": user
+            }
         )
 
     def handle_DELETE(self):
@@ -120,7 +131,7 @@ class BluelineCrudService(Service):
 
         del users[ID]
         self.log_and_respond(
-            f"User with ID: {ID} deleted successfully",
-            200,
-            {"message": f"User with ID: {ID} deleted successfully"}
+            message=f"User with ID: {ID} deleted successfully",
+            status_code=200,
+            payload={"message": f"User with ID: {ID} deleted successfully"}
         )
